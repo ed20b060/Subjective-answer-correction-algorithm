@@ -1,0 +1,150 @@
+import math
+import re
+from collections import Counter
+import sklearn
+from sklearn.
+import gensim
+import nltk
+from gensim.models import Word2Vec
+import numpy as np
+
+student_answer = input("Enter Student Answer")
+model_answer = input("Enter the model Answer")
+
+# Word2Vec
+model = []
+freq = []  # List to store keywords with frequency 1
+student_new = []
+student_train = []
+model_train = []
+i = 0
+while i < (len(student_answer)):
+    sentence = ""
+    k = 0
+    while student_answer[i] != '.':
+        sentence = sentence + student_answer[i]
+        i = i + 1
+        k = k + 1
+        if i == len(student_answer):
+            break
+    i = i + 1
+    token = nltk.word_tokenize(sentence)
+    student_train.append(token)
+    temp = nltk.pos_tag(token)
+    print(temp)
+    print(token)
+    for n in range(len(temp)):
+        w = temp[n]
+        if w[1][0] != 'N' and w[1][0] != 'J':
+            token.remove(w[0])
+    if len(token) > 0:
+        student_new.append(token)
+
+m = 0
+
+WORD = re.compile(r'\w+')
+
+
+def get_cosine(vec1, vec2):
+    intersection = set(vec1.keys()) & set(vec2.keys())
+    # print("vec1.elements()",vec1.keys())
+    # print("vec2.elements()",vec2.keys())
+    # print("taking intersection of these two")
+
+    numerator = sum([vec1[x] * vec2[x] for x in intersection])
+    # print("[vec1[x] * vec2[x] for x in intersection]",[vec1[x] * vec2[x] for x in intersection])
+    # print("numerator",numerator)
+
+    sum1 = sum([vec1[x] ** 2 for x in vec1.keys()])
+    # print("[vec1[x] ** 2 for x in vec1.keys()]",[vec1[x] ** 2 for x in vec1.keys()])
+    # print("sum1",sum1)
+    sum2 = sum([vec2[x] ** 2 for x in vec2.keys()])
+    # print("[vec2[x] ** 2 for x in vec2.keys()]",[vec2[x] ** 2 for x in vec2.keys()])
+    # print("sum2",sum2)
+    denominator = math.sqrt(sum1) * math.sqrt(sum2)
+    # print("denominator",denominator)
+    if not denominator:
+        return 0.0
+    else:
+        # print("float(numerator) / denominator", (numerator) / denominator)
+        return float(numerator) / denominator
+
+
+def text_to_vector(text):
+    words = WORD.findall(text)
+    return Counter(text)
+
+
+def givSimilarityValue(text1, text2):
+    vector1 = text_to_vector(text1)
+    vector1mine = vector1.keys()
+    # print("vector1mine",vector1)
+    vector2 = text_to_vector(text2)
+    cosine = round(get_cosine(vector1, vector2), 2) * 100
+    return cosine
+
+
+while m < (len(model_answer)):
+    sentence = ""
+    q = 0
+    while model_answer[m] != '.':
+        sentence = sentence + model_answer[m]
+        m = m + 1
+        q = q + 1
+        if m == len(model_answer):
+            break
+    m = m + 1
+    token = nltk.word_tokenize(sentence)
+    model_train.append(token)
+    temp = nltk.pos_tag(token)
+    for n in range(len(temp)):
+        w = temp[n]
+        if w[1][0] != 'N' and w[1][0] != 'J':
+            token.remove(w[0])
+        print(token)
+    for word in token:
+        try:
+            if freq.index(word) >= 0:
+                freq.remove(word)
+        except:
+            freq.append(word)
+
+model1 = gensim.models.Word2Vec(model_train, min_count=1, vector_size=2, window=10)
+model2 = gensim.models.Word2Vec(student_train, min_count=1, vector_size=2, window=10)
+
+key_student = ""
+total = 0
+
+for keywords in freq:
+    score = 0
+    count = 0
+    i = 0
+    while i < len(student_new):
+        for key2 in student_new[i]:
+            correct = givSimilarityValue(key2, keywords)
+            if correct > 98:
+                score = score + correct
+                count = count + 1
+                key_student = key2
+        i = i + 1
+    if count > 0:
+        mean_score = 100
+        if mean_score > 98:
+            similar = model1.wv.most_similar([keywords])
+            similar2 = model2.wv.most_similar([key_student])
+            sim_count = 0
+            for sim1 in similar:
+                for sim2 in similar2:
+                    cosine = givSimilarityValue(sim1[0], sim2[0])
+                    print(sim1)
+                    print(sim2)
+                    print("cosine=", cosine)
+                    if cosine > 98:
+                        sim_count = sim_count + 1
+                        break
+            print("sim count", sim_count)
+            print("similar= ", len(similar))
+            if sim_count / len(similar) > 0.1:
+                total = total + mean_score * 0.01
+
+print("Score=", total / len(freq))
