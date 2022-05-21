@@ -2,7 +2,7 @@ import math
 import re
 from collections import Counter
 import sklearn
-from sklearn.
+
 import gensim
 import nltk
 from gensim.models import Word2Vec
@@ -13,7 +13,7 @@ model_answer = input("Enter the model Answer")
 
 # Word2Vec
 model = []
-freq = []  # List to store keywords with frequency 1
+freq = {}  # Dictionary to store frequency of words
 student_new = []
 student_train = []
 model_train = []
@@ -76,6 +76,8 @@ def text_to_vector(text):
 
 
 def givSimilarityValue(text1, text2):
+    text1 = text1.lower()
+    text2 = text2.lower()
     vector1 = text_to_vector(text1)
     vector1mine = vector1.keys()
     # print("vector1mine",vector1)
@@ -84,6 +86,7 @@ def givSimilarityValue(text1, text2):
     return cosine
 
 
+word_count = 0
 while m < (len(model_answer)):
     sentence = ""
     q = 0
@@ -103,19 +106,53 @@ while m < (len(model_answer)):
             token.remove(w[0])
         print(token)
     for word in token:
-        try:
-            if freq.index(word) >= 0:
-                freq.remove(word)
-        except:
-            freq.append(word)
+        if word in freq:
+            freq[word] = freq[word] + 1
+        else:
+            freq[word] = 1
+        word_count = word_count + 1
+keyword = []
+freq = dict(sorted(freq.items(), key=lambda item: item[1]))
+for word in freq:
+    if word_count < 10:
+        if freq[word]/word_count < 0.1:
+            keyword.append(word)
+        else:
+            break
+    else:
+        if freq[word] <= 2:
+            keyword.append(word)
 
 model1 = gensim.models.Word2Vec(model_train, min_count=1, vector_size=2, window=10)
 model2 = gensim.models.Word2Vec(student_train, min_count=1, vector_size=2, window=10)
+my_dict = dict({})
 
+vector = model1.wv.vectors
+vector2 = model2.wv.vectors
+print(vector2)
+print(vector)
+words = list(w for w in model1.wv.index_to_key)
+key_vectors = {}
+for i in range(len(words)):
+    key_vectors[words[i]] = vector[i]
+print(key_vectors)
+for i in key_vectors:
+    for j in key_vectors:
+        print(np.linalg.norm(np.array(key_vectors[i] - key_vectors[j])))
+        print((np.arccos((np.dot(key_vectors[i], key_vectors[j]) / (
+                np.linalg.norm(key_vectors[i]) * np.linalg.norm(key_vectors[j]))))) * (180 / 3.14))
+words2 = list(w for w in model2.wv.index_to_key)
+key_vectors2 = {}
+for i in range(len(words2)):
+    key_vectors2[words2[i]] = vector2[i]
+print(key_vectors2)
+for i in key_vectors2:
+    for j in key_vectors:
+        g = i
 key_student = ""
 total = 0
 
-for keywords in freq:
+for keywords in keyword:
     score = 0
     count = 0
     i = 0
@@ -139,7 +176,7 @@ for keywords in freq:
                     print(sim1)
                     print(sim2)
                     print("cosine=", cosine)
-                    if cosine > 98:
+                    if cosine > 95:
                         sim_count = sim_count + 1
                         break
             print("sim count", sim_count)
@@ -147,4 +184,5 @@ for keywords in freq:
             if sim_count / len(similar) > 0.1:
                 total = total + mean_score * 0.01
 
-print("Score=", total / len(freq))
+print("Score=", total / len(keyword))
+
