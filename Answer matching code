@@ -1,188 +1,178 @@
-import math
 import re
 from collections import Counter
 import sklearn
-
+from sklearn.linear_model import LinearRegression
+import pandas as pd
 import gensim
 import nltk
 from gensim.models import Word2Vec
 import numpy as np
-
-student_answer = input("Enter Student Answer")
-model_answer = input("Enter the model Answer")
-
-# Word2Vec
-model = []
-freq = {}  # Dictionary to store frequency of words
-student_new = []
-student_train = []
-model_train = []
-i = 0
-while i < (len(student_answer)):
-    sentence = ""
-    k = 0
-    while student_answer[i] != '.':
-        sentence = sentence + student_answer[i]
-        i = i + 1
-        k = k + 1
-        if i == len(student_answer):
-            break
-    i = i + 1
-    token = nltk.word_tokenize(sentence)
-    student_train.append(token)
-    temp = nltk.pos_tag(token)
-    print(temp)
-    print(token)
-    for n in range(len(temp)):
-        w = temp[n]
-        if w[1][0] != 'N' and w[1][0] != 'J':
-            token.remove(w[0])
-    if len(token) > 0:
-        student_new.append(token)
-
-m = 0
-
-WORD = re.compile(r'\w+')
+import math
 
 
-def get_cosine(vec1, vec2):
-    intersection = set(vec1.keys()) & set(vec2.keys())
-    # print("vec1.elements()",vec1.keys())
-    # print("vec2.elements()",vec2.keys())
-    # print("taking intersection of these two")
-
-    numerator = sum([vec1[x] * vec2[x] for x in intersection])
-    # print("[vec1[x] * vec2[x] for x in intersection]",[vec1[x] * vec2[x] for x in intersection])
-    # print("numerator",numerator)
-
-    sum1 = sum([vec1[x] ** 2 for x in vec1.keys()])
-    # print("[vec1[x] ** 2 for x in vec1.keys()]",[vec1[x] ** 2 for x in vec1.keys()])
-    # print("sum1",sum1)
-    sum2 = sum([vec2[x] ** 2 for x in vec2.keys()])
-    # print("[vec2[x] ** 2 for x in vec2.keys()]",[vec2[x] ** 2 for x in vec2.keys()])
-    # print("sum2",sum2)
-    denominator = math.sqrt(sum1) * math.sqrt(sum2)
-    # print("denominator",denominator)
-    if not denominator:
-        return 0.0
-    else:
-        # print("float(numerator) / denominator", (numerator) / denominator)
-        return float(numerator) / denominator
-
-
-def text_to_vector(text):
-    words = WORD.findall(text)
-    return Counter(text)
-
-
-def givSimilarityValue(text1, text2):
-    text1 = text1.lower()
-    text2 = text2.lower()
-    vector1 = text_to_vector(text1)
-    vector1mine = vector1.keys()
-    # print("vector1mine",vector1)
-    vector2 = text_to_vector(text2)
-    cosine = round(get_cosine(vector1, vector2), 2) * 100
-    return cosine
-
-
-word_count = 0
-while m < (len(model_answer)):
-    sentence = ""
-    q = 0
-    while model_answer[m] != '.':
-        sentence = sentence + model_answer[m]
-        m = m + 1
-        q = q + 1
-        if m == len(model_answer):
-            break
-    m = m + 1
-    token = nltk.word_tokenize(sentence)
-    model_train.append(token)
-    temp = nltk.pos_tag(token)
-    for n in range(len(temp)):
-        w = temp[n]
-        if w[1][0] != 'N' and w[1][0] != 'J':
-            token.remove(w[0])
-        print(token)
-    for word in token:
-        if word in freq:
-            freq[word] = freq[word] + 1
-        else:
-            freq[word] = 1
-        word_count = word_count + 1
-keyword = []
-freq = dict(sorted(freq.items(), key=lambda item: item[1]))
-for word in freq:
-    if word_count < 10:
-        if freq[word]/word_count < 0.1:
-            keyword.append(word)
-        else:
-            break
-    else:
-        if freq[word] <= 2:
-            keyword.append(word)
-
-model1 = gensim.models.Word2Vec(model_train, min_count=1, vector_size=2, window=10)
-model2 = gensim.models.Word2Vec(student_train, min_count=1, vector_size=2, window=10)
-my_dict = dict({})
-
-vector = model1.wv.vectors
-vector2 = model2.wv.vectors
-print(vector2)
-print(vector)
-words = list(w for w in model1.wv.index_to_key)
-key_vectors = {}
-for i in range(len(words)):
-    key_vectors[words[i]] = vector[i]
-print(key_vectors)
-for i in key_vectors:
-    for j in key_vectors:
-        print(np.linalg.norm(np.array(key_vectors[i] - key_vectors[j])))
-        print((np.arccos((np.dot(key_vectors[i], key_vectors[j]) / (
-                np.linalg.norm(key_vectors[i]) * np.linalg.norm(key_vectors[j]))))) * (180 / 3.14))
-words2 = list(w for w in model2.wv.index_to_key)
-key_vectors2 = {}
-for i in range(len(words2)):
-    key_vectors2[words2[i]] = vector2[i]
-print(key_vectors2)
-for i in key_vectors2:
-    for j in key_vectors:
-        g = i
-key_student = ""
-total = 0
-
-for keywords in keyword:
-    score = 0
-    count = 0
+def evaluate(model_answer, student_answer):
+    key_student = ""
+    freq = {}  # Dictionary to store frequency of words
+    student_new = []
+    student_train = []
+    model_train = []
     i = 0
-    while i < len(student_new):
-        for key2 in student_new[i]:
-            correct = givSimilarityValue(key2, keywords)
-            if correct > 98:
-                score = score + correct
-                count = count + 1
-                key_student = key2
+    while i < (len(student_answer)):
+        sentence = ""
+        k = 0
+        while student_answer[i] != '.':
+            sentence = sentence + student_answer[i]
+            i = i + 1
+            k = k + 1
+            if i == len(student_answer):
+                break
         i = i + 1
-    if count > 0:
-        mean_score = 100
-        if mean_score > 98:
-            similar = model1.wv.most_similar([keywords])
-            similar2 = model2.wv.most_similar([key_student])
-            sim_count = 0
-            for sim1 in similar:
-                for sim2 in similar2:
-                    cosine = givSimilarityValue(sim1[0], sim2[0])
-                    print(sim1)
-                    print(sim2)
-                    print("cosine=", cosine)
-                    if cosine > 95:
-                        sim_count = sim_count + 1
-                        break
-            print("sim count", sim_count)
-            print("similar= ", len(similar))
-            if sim_count / len(similar) > 0.1:
-                total = total + mean_score * 0.01
+        token = nltk.word_tokenize(sentence)
+        student_train.append(token)
+        temp = nltk.pos_tag(token)
+        print(temp)
+        print(token)
+        for n in range(len(temp)):
+            w = temp[n]
+            if w[1][0] != 'N' and w[1][0] != 'J':
+                token.remove(w[0])
+        if len(token) > 0:
+            student_new.append(token)
 
-print("Score=", total / len(keyword))
+    m = 0
+
+    WORD = re.compile(r'\w+')
+
+    def get_cosine(vec1, vec2):
+        intersection = set(vec1.keys()) & set(vec2.keys())
+        numerator = sum([vec1[x] * vec2[x] for x in intersection])
+        sum1 = sum([vec1[x] ** 2 for x in vec1.keys()])
+        sum2 = sum([vec2[x] ** 2 for x in vec2.keys()])
+        denominator = math.sqrt(sum1) * math.sqrt(sum2)
+        if not denominator:
+            return 0.0
+        else:
+            return float(numerator) / denominator
+
+    def text_to_vector(text):
+        words = WORD.findall(text)
+        return Counter(text)
+
+    def givSimilarityValue(text1, text2):
+        text1 = text1.lower()
+        text2 = text2.lower()
+        vector1 = text_to_vector(text1)
+        vector2 = text_to_vector(text2)
+        cosine = round(get_cosine(vector1, vector2), 2) * 100
+        return cosine
+
+    word_count = 0
+    while m < (len(model_answer)):
+        sentence = ""
+        q = 0
+        while model_answer[m] != '.':
+            sentence = sentence + model_answer[m]
+            m = m + 1
+            q = q + 1
+            if m == len(model_answer):
+                break
+        m = m + 1
+        token = nltk.word_tokenize(sentence)
+        word_count = len(token)
+        model_train.append(token)
+        temp = nltk.pos_tag(token)
+        for n in range(len(temp)):
+            w = temp[n]
+            if w[1][0] != 'N' and w[1][0] != 'J':
+                token.remove(w[0])
+
+        for word in token:
+            if word in freq:
+                freq[word] = freq[word] + 1
+            else:
+                freq[word] = 1
+    keyword = []
+    freq = dict(sorted(freq.items(), key=lambda item: item[1]))
+    for word in freq:
+        if word_count > 10:
+            if freq[word] / word_count < 0.1:
+                keyword.append(word)
+            else:
+                break
+        else:
+            if freq[word] <= 2:
+                keyword.append(word)
+    model1 = gensim.models.Word2Vec(model_train, min_count=1, vector_size=2, window=10)
+    model2 = gensim.models.Word2Vec(student_train, min_count=1, vector_size=2, window=10)
+    total = 0
+    sim_total = 0
+    for keywords in keyword:
+        score = 0
+        count = 0
+        i = 0
+        while i < len(student_new):
+            for key2 in student_new[i]:
+                correct = givSimilarityValue(key2, keywords)
+                if correct > 98:
+                    score = score + correct
+                    count = count + 1
+                    key_student = key2
+            i = i + 1
+        if count > 0:
+            mean_score = score / count
+            total = total + mean_score / 100
+            if mean_score > 98:
+                similar = model1.wv.most_similar([keywords])
+                similar2 = model2.wv.most_similar([key_student])
+                sim_count = 0
+                for sim1 in similar:
+                    for sim2 in similar2:
+                        cosine = givSimilarityValue(sim1[0], sim2[0])
+                        if cosine > 95:
+                            sim_count = sim_count + 1
+                            break
+                sim_total = sim_total + sim_count / len(similar)
+    return sim_total / len(keyword), total / len(keyword)
+
+
+# For training the model
+student = np.array(pd.read_csv('answers.csv', usecols=['student answer']))
+model = np.array(pd.read_csv('answers.csv', usecols=['model answer']))
+marks = np.array(pd.read_csv('answers.csv', usecols=['marks']))
+X_train = []
+Y_train = []
+
+# Declaring the model
+reg = LinearRegression()
+for i in range(len(student)):
+    sim, total = evaluate(model[i], student[i])
+    X_train.append([sim, total])
+    Y_train.append(marks[i])
+reg = LinearRegression()
+reg.fit(X_train, Y_train)
+
+# For test dataset using test.csv
+print("Summary of the test dataset considered along with the marks:")
+student_test = np.array(pd.read_csv('test.csv', usecols=['student answer']))
+model_test = np.array(pd.read_csv('test.csv', usecols=['model answer']))
+X_test = []
+for i in range(len(student_test)):
+    sim, total = evaluate(model_test[i], student_test[i])
+    X_test.append([sim, total])
+Y_test = reg.predict(X_test)
+for i in range(len(student_test)):
+    print('student answer = ', student_test[i])
+    print('model answer= ', model_test[i])
+    percentage = round(Y_test[i][0], 2)
+    print("Marks=", percentage * 100, '%')
+
+# For final user based input
+model_answer_input = input('Enter model answer=')
+student_answer_input = input('Enter student answer=')
+sim, total = evaluate(model_answer_input, student_answer_input)
+X_predict = [[sim, total]]
+Y_predict = reg.predict(X_predict)
+percentage = round(Y_predict[0][0], 2)
+print("Marks=", percentage * 100, '%')
+
 
